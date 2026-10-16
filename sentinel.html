@@ -1,0 +1,64 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TrustShield Sentinel</title><style>
+:root{--bg:#05070d;--pn:#0b1120;--bd:#1b2740;--tx:#dbe4f5;--mu:#7f8aa3;--cy:#22d3ee;--am:#fbbf24;--rd:#f87171}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:13px/1.45 system-ui,sans-serif}
+.m{font-family:ui-monospace,Menlo,Consolas,monospace}header{display:flex;gap:16px;align-items:baseline;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--bd)}
+h1{margin:0;font-size:16px;letter-spacing:.14em}h1 b{color:var(--cy)}.tag{color:var(--mu)}.bd{border:1px solid var(--am);color:var(--am);padding:1px 8px;border-radius:4px;font-size:11px}
+main{display:grid;grid-template-columns:270px 1fr 340px;gap:10px;padding:10px}@media(max-width:1000px){main{grid-template-columns:1fr}}
+.p{background:var(--pn);border:1px solid var(--bd);border-radius:6px;padding:10px;margin-bottom:10px}.p h2{margin:0 0 6px;font-size:11px;letter-spacing:.12em;color:var(--cy);text-transform:uppercase}
+.ev{font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)}.ev.extension{color:var(--cy)}.sc{max-height:210px;overflow:auto}
+button,select{background:#0e1730;color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:6px 10px;cursor:pointer;font:inherit}button:hover{border-color:var(--cy)}
+svg{width:100%;height:520px;background:radial-gradient(circle at 50% 50%,#0a1428,#05070d);border:1px solid var(--bd);border-radius:6px;cursor:grab;touch-action:none}
+.hot{stroke-dasharray:6 4;animation:d 1s linear infinite}@keyframes d{to{stroke-dashoffset:-20}}
+.new{animation:pop .6s ease-out}@keyframes pop{from{opacity:0}}@media(prefers-reduced-motion:reduce){.hot,.new{animation:none}}
+.R-Low{color:var(--cy)}.R-Medium{color:var(--am)}.R-High,.R-Critical{color:var(--rd)}.k{color:var(--mu)}li{margin:2px 0}ul{padding-left:16px;margin:4px 0}
+.st{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center}
+</style></head><body>
+<header><h1>TRUST<b>SHIELD</b> SENTINEL</h1><span class="tag">Trust Nothing Blindly. Verify Everything.</span><span class="bd m">DEMO DATA · SIMULATED SCENARIOS</span><span class="m k" id="hl">health: …</span><a href="/" style="color:var(--mu)">classic UI</a></header>
+<main><div>
+<div class="p"><h2>Event stream</h2><div class="sc m" id="evs"><span class="k">Waiting for events…</span></div></div>
+<div class="p"><h2>Interception events (extension)</h2><div class="sc m" id="ix"><span class="k">None received. Install the extension from /extension to see live events.</span></div></div>
+<div class="p"><h2>Protection coverage</h2><div id="cov" class="k">Browser extension events: 0. Message inspection in other apps is NOT covered.</div></div></div>
+<div><div class="st"><select id="sc" aria-label="Scenario"><option value="college">A: Fake college coordinator</option><option value="contact">B: Family impersonation</option><option value="announce">C: Legitimate announcement</option></select>
+<button id="pl">▶ Play</button><button id="sp">Step</button><button id="rs">Reset</button>
+<select id="fr" aria-label="Risk filter"><option value="all">All states</option><option value="suspicious">Suspicious</option><option value="unverified">Unverified</option><option value="unknown">Unknown</option><option value="verified">Verified</option></select>
+<select id="ft" aria-label="Type filter"><option value="all">All types</option><option value="person">Person</option><option value="role">Role</option><option value="channel">Channel</option><option value="request">Request</option><option value="indicator">Indicator</option></select></div>
+<svg id="g" role="img" aria-label="Trust graph"></svg><div class="k m" style="margin:4px 0">cyan = verified · amber = unverified · red = suspicious · grey = unknown · dashed red = attack path. Scroll to zoom, drag to pan, click a node.</div>
+<div class="p" id="ni"><h2>Node inspector</h2><span class="k">Select a node.</span></div></div>
+<div><div class="p"><h2>Active investigation</h2><div id="iv"><span class="k">Press Step or Play.</span></div></div>
+<div class="p"><h2>Risk evidence</h2><div id="re"></div></div></main>
+<script>
+const $=i=>document.getElementById(i),NS="http://www.w3.org/2000/svg",el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+const S=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e};
+const COL={verified:"#22d3ee",unverified:"#fbbf24",suspicious:"#f87171",unknown:"#7f8aa3"},VB0=[-420,-260,840,520];
+let step=0,timer=null,inv=null,seen=new Set(),vb=[...VB0],lastEv=0,ext=0,sel=null;
+const svg=$("g"),setVB=()=>svg.setAttribute("viewBox",vb.join(" "));setVB();
+async function post(u,b){const x=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});const d=await x.json();if(!x.ok)throw new Error(d.message||"Request failed");return d}
+function layout(ns){const P={user:[300,0],sender:[0,0],role:[-250,110],channel:[-250,-110]};
+ [["req_",-170],["ind_",170]].forEach(([p,y])=>{const a=ns.filter(n=>n.id.startsWith(p));a.forEach((n,i)=>P[n.id]=[(i-(a.length-1)/2)*130,y])});return P}
+function draw(){svg.replaceChildren();if(!inv)return;const ns=inv.graph.nodes,P=layout(ns),fr=$("fr").value,ft=$("ft").value;
+ const vis=n=>(fr==="all"||n.state===fr)&&(ft==="all"||n.type===ft),on=new Set(inv.path);
+ inv.graph.edges.forEach(e=>{const a=P[e.from],b=P[e.to];if(!a||!b)return;svg.append(S("line",{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:e.hot?"#f87171":"#2b3b5e","stroke-width":e.hot?2.5:1.2,class:e.hot?"hot":""}));
+  const t=S("text",{x:(a[0]+b[0])/2,y:(a[1]+b[1])/2,fill:"#7f8aa3","font-size":9,"text-anchor":"middle"});t.textContent=e.label;svg.append(t)});
+ ns.forEach(n=>{const [x,y]=P[n.id],g=S("g",{class:seen.has(n.id)?"":"new",opacity:vis(n)?1:.15,style:"cursor:pointer",tabindex:0});
+  g.append(S("circle",{cx:x,cy:y,r:n.id==="sender"?22:16,fill:"#0b1120",stroke:COL[n.state],"stroke-width":sel===n.id||on.has(n.id)?4:2}));
+  const t=S("text",{x,y:y+34,fill:"#dbe4f5","font-size":10,"text-anchor":"middle"});t.textContent=n.label;g.append(t);g.onclick=()=>{sel=n.id;inspect(n);draw()};svg.append(g);seen.add(n.id)})}
+function inspect(n){const c=$("ni");c.replaceChildren(el("h2","","Node inspector"),el("div","m",n.label+" · "+n.type+" · "+n.state),el("div","",n.detail),el("div","k m","provenance: "+n.provenance))}
+function list(t,a){const d=el("div");d.append(el("b","k",t));const u=el("ul");(a.length?a:["—"]).forEach(x=>u.append(el("li","",x)));d.append(u);return d}
+function panels(){const a=inv.assessment,i=$("iv");i.replaceChildren(el("div","k m",inv.labelled),el("div","",inv.title+" — step "+inv.step+"/"+inv.total),el("div","m R-"+a.risk_level,"RISK: "+a.risk_level),el("div","m","IDENTITY: "+a.identity_status+" (not a fraud verdict)"),el("div","m","ACTION RISK: "+a.action_risk.level));
+ const u=el("ul");inv.timeline.forEach(t=>u.append(el("li","",t.stage+" → "+t.detail)));i.append(u);
+ const r=$("re");r.replaceChildren(list("Known facts",inv.facts),list("Inferred risks",inv.inferred),list("Missing evidence",inv.missing),list("Safe action",[a.safe_action]))}
+async function go(){const s=$("sc").value;if(inv&&inv.id===s&&step>=inv.total){pause();return}
+ try{step=inv&&inv.id===s?step+1:1;inv=await post("/api/investigations",{scenario_id:s,step});panels();draw()}catch(e){$("iv").textContent="Error: "+e.message;pause()}}
+function pause(){clearInterval(timer);timer=null;$("pl").textContent="▶ Play"}
+$("pl").onclick=()=>{if(timer)return pause();$("pl").textContent="⏸ Pause";go();timer=setInterval(go,2500)};
+$("sp").onclick=()=>{pause();go()};
+function reset(){pause();step=0;inv=null;seen.clear();sel=null;vb=[...VB0];setVB();svg.replaceChildren();$("iv").textContent="Press Step or Play.";$("re").replaceChildren();$("ni").replaceChildren(el("h2","","Node inspector"),el("span","k","Select a node."))}
+$("rs").onclick=reset;$("sc").onchange=reset;$("fr").onchange=draw;$("ft").onchange=draw;
+svg.onwheel=e=>{e.preventDefault();const f=e.deltaY>0?1.1:.9,cx=vb[0]+vb[2]/2,cy=vb[1]+vb[3]/2;vb=[cx-vb[2]*f/2,cy-vb[3]*f/2,vb[2]*f,vb[3]*f];setVB()};
+let dr=null;svg.onpointerdown=e=>{dr=[e.clientX,e.clientY]};window.onpointerup=()=>dr=null;
+svg.onpointermove=e=>{if(!dr)return;const k=vb[2]/svg.clientWidth;vb[0]-=(e.clientX-dr[0])*k;vb[1]-=(e.clientY-dr[1])*k;dr=[e.clientX,e.clientY];setVB()};
+async function poll(){try{const a=await (await fetch("/api/events?since="+lastEv)).json();if(a.length&&lastEv===0){$("evs").replaceChildren();$("ix").replaceChildren()}
+ a.forEach(e=>{lastEv=Math.max(lastEv,e.id);const d=el("div","ev "+e.source,"["+e.label+"] "+e.summary+" → "+e.level);$("evs").prepend(d);if(e.source==="extension"){ext++;$("ix").prepend(d.cloneNode(true));$("cov").textContent="Browser extension events: "+ext+". Message inspection in other apps is NOT covered."}})}catch(e){}}
+setInterval(poll,2000);poll();
+fetch("/api/health").then(r=>r.json()).then(h=>$("hl").textContent="health: "+h.status+" · engine: "+h.engine).catch(()=>$("hl").textContent="health: backend unreachable");
+</script></body></html>

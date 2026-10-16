@@ -1,0 +1,3 @@
+{"manifest_version":3,"name":"TrustShield Sentinel Interceptor","version":"0.1.0","description":"Assesses navigations via the local TrustShield backend and warns on high-risk destinations.",
+"permissions":["webNavigation","storage"],"host_permissions":["http://127.0.0.1:8000/*","http://localhost:8000/*"],
+"background":{"service_worker":"background.js"},"options_page":"options.html"}
